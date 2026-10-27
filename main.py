@@ -116,12 +116,61 @@ print(f"Conjunto de Validação: {X_val.shape} amostras ({X_val.shape[0]/X.shape
 print(f"Conjunto de Teste: {X_test.shape} amostras ({X_test.shape[0]/X.shape[0]:.0%})")
 
 
-# 3. Normalização dos valores dos pixels para o intervalo [0.0, 1.0]
-X_train_norm = X_train / 255.0
-X_val_norm = X_val / 255.0
-X_test_norm = X_test / 255.0
+# 3. Normalização dos valores dos pixels para o intervalo [0.0, 1.0] e conversão para float32
+X_train_norm = X_train.astype('float32') / 255.0
+X_val_norm = X_val.astype('float32') / 255.0
+X_test_norm = X_test.astype('float32') / 255.0
 
 """
 JUSTIFICATIVA TÉCNICA DA NORMALIZAÇÃO (FASE 2):
 A normalização ajusta os valores das características para o intervalo [0.0, 1.0]. Isso impede que algoritmos baseados em distâncias métricas (como KNN ou SVM) ou baseados em otimização por gradiente (como Redes Neurais/MLP) sofram com instabilidade numérica, além de acelerar substancialmente a convergência do treinamento ao manter as derivadas parciais e taxas de aprendizado em magnitudes adequadas.
 """
+
+# ==============================================================================
+# FASE 3: IMPLEMENTAÇÃO E TREINAMENTO DE 3 MODELOS
+# ==============================================================================
+"""
+OBJETIVO:
+- Treinar 3 modelos distintos com ajuste e variação justificada de ao menos 2 hiperparâmetros cada:
+  1. Random Forest (Métricas de Árvores de Decisão Ensembled)
+  2. SVM - Support Vector Machine (Kernel RBF e Marge Magnitudes)
+  3. Perceptron Multicamadas - MLP (Rede Neural Artificial com TensorFlow/Keras ou Scikit-Learn)
+"""
+
+print("\n--- FASE 3: Treinamento dos 3 Modelos ---")
+
+models = {
+    "Random Forest": RandomForestClassifier(
+        n_estimators=100,      # Hiperparâmetro 1: Número de árvores na floresta
+        max_depth=15,          # Hiperparâmetro 2: Profundidade máxima de cada árvore
+        random_state=42,
+        n_jobs=-1
+    ),
+    "SVM (RBF)": SVC(
+        C=5.0,                 # Hiperparâmetro 1: Fator de penalização de erros (Regularização)
+        kernel='rbf',          # Hiperparâmetro 2: Função de Kernel para Mapeamento Não-Linear
+        gamma='scale',
+        random_state=42
+    ),
+    "Rede Neural MLP": MLPClassifier(
+        hidden_layer_sizes=(128, 64), # Hiperparâmetro 1: Arquitetura com 2 camadas ocultas
+        activation='relu',            # Hiperparâmetro 2: Função de ativação não-linear
+        max_iter=30,
+        random_state=42
+    )
+}
+
+trained_models = {}
+execution_times = {}
+
+for name, model in models.items():
+    print(f"Treinando modelo: {name}...")
+    start_time = time.time()
+    model.fit(X_train_norm, y_train)
+    elapsed_time = time.time() - start_time
+
+    trained_models[name] = model
+    execution_times[name] = elapsed_time
+    print(f"-> {name} treinado em {elapsed_time:.2f} segundos.")
+
+    
