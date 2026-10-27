@@ -89,3 +89,39 @@ EXPLICAÇÃO TÉCNICA DA ESTRUTURA DOS DADOS (FASE 1):
 - Balanceamento: A distribuição é equilibrada, contendo aproximadamente 7.000 amostras por dígito (~10% do total por classe).
 """
 
+# ==============================================================================
+# FASE 2: PIPELINE DE PRÉ-PROCESSAMENTO E DIVISÃO DOS DADOS
+# ==============================================================================
+"""
+OBJETIVO:
+- Realizar a divisão estratificada (Stratified Split) em Treino, Validação e Teste (70% / 10% / 20%).
+- Aplicar a normalização dos pixels para a escala [0.0, 1.0].
+- Justificar tecnicamente a importância da normalização.
+"""
+
+print("\n--- FASE 2: Pré-processamento e Divisão Estratificada ---")
+
+# 1. Divisão Inicial: 80% Treino+Validação e 20% Teste (Garantindo estratificação)
+X_train_val, X_test, y_train_val, y_test = train_test_split(
+    X, y, test_size=0.20, random_state=42, stratify=y
+)
+
+# 2. Divisão Secundária: Separar Treino (70% do total) e Validação (10% do total)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_train_val, y_train_val, test_size=0.125, random_state=42, stratify=y_train_val
+)
+
+print(f"Conjunto de Treino: {X_train.shape} amostras ({X_train.shape[0] / X.shape[0]:.0%})")
+print(f"Conjunto de Validação: {X_val.shape} amostras ({X_val.shape[0]/X.shape[0]:.0%})")
+print(f"Conjunto de Teste: {X_test.shape} amostras ({X_test.shape[0]/X.shape[0]:.0%})")
+
+
+# 3. Normalização dos valores dos pixels para o intervalo [0.0, 1.0]
+X_train_norm = X_train / 255.0
+X_val_norm = X_val / 255.0
+X_test_norm = X_test / 255.0
+
+"""
+JUSTIFICATIVA TÉCNICA DA NORMALIZAÇÃO (FASE 2):
+A normalização ajusta os valores das características para o intervalo [0.0, 1.0]. Isso impede que algoritmos baseados em distâncias métricas (como KNN ou SVM) ou baseados em otimização por gradiente (como Redes Neurais/MLP) sofram com instabilidade numérica, além de acelerar substancialmente a convergência do treinamento ao manter as derivadas parciais e taxas de aprendizado em magnitudes adequadas.
+"""
