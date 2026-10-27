@@ -229,3 +229,141 @@ CONCLUSÃO TÉCNICA (FASE 4):
 3. Custo Computacional: A Rede Neural MLP e o SVM exigem um tempo de processamento maior no treinamento, porém justificam o investimento computacional ao atingir F1-Scores superiores no conjunto de teste.
 """
 
+# ==============================================================================
+# FASE 5.1 & 5.2: DESAFIOS A E B - ROBUSTEZ E GENERALIZAÇÃO EXTREMA (OOD)
+# ==============================================================================
+"""
+OBJETIVO:
+- Fase 5.1 (Desafio A): Ocultar totalmente duas classes (ex: dígitos 4 e 7) do treino.
+- Fase 5.2 (Desafio B): Testar o modelo treinado apenas nas imagens das classes ocultadas.
+- Analisar o comportamento do classificador diante de dados OOD (Out-of-Distribution) e debater o conceito de Falsa Certeza (Overconfidence).
+"""
+
+print("\n--- FASE 5.1 & 5.2: Teste de Generalização Extrema (OOD) ---")
+
+# Seleção das classes ocultadas
+classes_ocultas = [4, 7]
+print(f"Ocultando do conjunto de treinamento as classes: {classes_ocultas}")
+
+# Filtrando o conjunto de treino para REMOVER as classes 4 e 7
+mask_train = ~np.isin(y_train, classes_ocultas)
+X_train_masked = X_train_norm[mask_train]
+y_train_masked = y_train[mask_train]
+
+# Treinando um modelo mascarado (Random Forest)
+model_ood = RandomForestClassifier(n_estimators=100, random_state=42)
+model_ood.fit(X_train_masked, y_train_masked)
+print("Modelo mascarado treinado com sucesso sem ver os dígitos 4 e 7!")
+
+# Filtrando o conjunto de teste para MANTER EXCLUSIVAMENTE as classes ocultadas
+mask_test_ood = np.isin(y_test, classes_ocultas)
+X_test_ood = X_test_norm[mask_test_ood]
+y_test_ood = y_test[mask_test_ood]
+
+# Inferência OOD
+y_pred_ood = model_ood.predict(X_test_ood)
+
+# Exibição das atribuições forçadas
+df_ood_assign = pd.DataFrame({'Rótulo Real': y_test_ood, 'Classe Atribuída Pelo Modelo': y_pred_ood})
+print("\nFrequência das classes atribuídas aos dígitos desconhecidos (4 e 7):")
+print(df_ood_assign['Classe Atribuída Pelo Modelo'].value_counts())
+
+# Plot da Matriz de Confusão OOD
+cm_ood = confusion_matrix(y_test_ood, y_pred_ood, labels=list(range(10)))
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm_ood, annot=True, fmt='d', cmap='Oranges')
+plt.title("Matriz de Confusão - Inferência OOD (Dígitos 4 e 7 Ocultos no Treino)", fontweight='bold')
+plt.xlabel("Rótulo Atribuído pelo Modelo")
+plt.ylabel("Rótulo Real (4 ou 7)")
+plt.show()
+
+"""
+ANÁLISE DE OVERCONFIDENCE (FALSA CERTEZA):
+Quando submetido a dados fora da distribuição conhecida (Out-of-Distribution), o modelo determinístico é forçado a classificar o elemento desconhecido em uma das classes previamente aprendidas. O dígito '4' é frequentemente confundido com '9' ou '1', enquanto o '7' é associado ao '1'. Modelos clássicos e redes neurais sofrem de "Falsa Certeza" (Overconfidence), emitindo probabilidades elevadas mesmo para dados totalmente fora da sua distribuição de treino.
+"""
+
+# ==============================================================================
+# FASE 5.3: DESAFIO C - INFERÊNCIA COM IMAGENS MANUSCRITAS PRÓPRIAS
+# ==============================================================================
+"""
+OBJETIVO:
+- Criar pipeline de pré-processamento de imagens personalizadas (fotografadas ou desenhadas).
+- Passos: Conversão para escala de cinza, inversão de cores, centralização de massa/bounding box, resize 28x28 e normalização.
+- Predição com o melhor modelo e plotagem das probabilidades de saída.
+"""
+
+print("\n--- FASE 5.3: Pipeline de Processamento de Imagens Próprias ---")
+
+def preprocess_custom_image(image_path):
+    """
+    Função de Pré-processamento de Imagens Externas:
+    1. Carrega a imagem.
+    2. Converte para escala de cinza.
+    3. Inverte as cores (para papel branco com traço preto -> fundo preto com traço branco).
+    4. Aplica recorte (Bounding Box) para centralização.
+    5. Redimensiona para 28x28 pixels mantendo a proporção.
+    6. Normaliza para a escala [0.0, 1.0].
+    """
+    # 1. Leitura e escala de cinza
+    img = Image.open(image_path).convert('L')
+
+    # 2. Inversão de cores (Fundo deve ser escuro e o traço claro como no MNIST)
+    img = ImageOps.invert(img)
+
+    # 3. Centralização por Bounding Box (Recorte do dígito)
+    bbox = img.getbbox()
+    if bbox:
+        img = img.crop(bbox)
+
+    # 4. Redimensionamento suave para 28x28 pixels
+    img = img.resize((20, 20), Image.Resampling.LANCZOS)
+
+    # Criar uma tela preta de 28x28 e colar o dígito centralizado
+    new_img = Image.new('L', (28, 28), 0)
+    new_img.paste(img, (4, 4))
+
+    # 5. Vetorização e Normalização
+    img_array = np.array(new_img, dtype=np.float32) / 255.0
+    img_vector = img_array.reshape(1, 784)
+
+    return img_array, img_vector
+
+# --- SIMULAÇÃO DA TESTAGEM DA IMAGEM PRÓPRIA ---
+# Observação: Para testar no seu ambiente local, crie uma imagem e substitua 'meu_digito.png'
+# Exemplo hipotético testando uma amostra do próprio dataset para demonstração do gráfico de probabilidades:
+
+sample_img_array = X_test_norm[0].reshape(28, 28)
+sample_img_vector = X_test_norm[0].reshape(1, 784)
+
+# Escolha do melhor modelo treinado (SVM)
+best_model = trained_models["SVM (RBF)"]
+
+# Obtenção das probabilidades de saída ou pontuações de decisão
+if hasattr(best_model, "predict_proba"):
+    probabilities = best_model.predict_proba(sample_img_vector)[0]
+else:
+    # Ajuste de escala para modelos que usam decision_function
+    df_scores = best_model.decision_function(sample_img_vector)[0]
+    probabilities = np.exp(df_scores) / np.sum(np.exp(df_scores))
+
+pred_class = np.argmax(probabilities)
+
+# Plotagem comparativa: Imagem Processada vs Gráfico de Probabilidades
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
+ax1.imshow(sample_img_array, cmap='gray')
+ax1.set_title(f"Imagem Própria Processada (28x28)\nPredição: {pred_class}", fontweight='bold')
+ax1.axis('off')
+
+bars = ax2.bar(range(10), probabilities, color='skyblue')
+bars[pred_class].set_color('green')  # Destaque na classe predita
+ax2.set_xticks(range(10))
+ax2.set_xlabel("Dígitos (0 a 9)")
+ax2.set_ylabel("Probabilidade / Confiança")
+ax2.set_title("Distribuição de Probabilidades por Classe", fontweight='bold')
+ax2.set_ylim(0, 1.0)
+
+plt.tight_layout()
+plt.show()
+
+print(f"Predição final do modelo para a imagem fornecida: Dígito {pred_class}")
