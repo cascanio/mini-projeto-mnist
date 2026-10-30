@@ -123,7 +123,10 @@ X_test_norm = X_test.astype('float32') / 255.0
 
 """
 JUSTIFICATIVA TÉCNICA DA NORMALIZAÇÃO (FASE 2):
-A normalização ajusta os valores das características para o intervalo [0.0, 1.0]. Isso impede que algoritmos baseados em distâncias métricas (como KNN ou SVM) ou baseados em otimização por gradiente (como Redes Neurais/MLP) sofram com instabilidade numérica, além de acelerar substancialmente a convergência do treinamento ao manter as derivadas parciais e taxas de aprendizado em magnitudes adequadas.
+A normalização ajusta os valores das características para o intervalo [0.0, 1.0].
+Isso impede que algoritmos baseados em distâncias métricas (como KNN ou SVM) ou baseados em otimização
+por gradiente (como Redes Neurais/MLP) sofram com instabilidade numérica, além de acelerar substancialmente
+a convergência do treinamento ao manter as derivadas parciais e taxas de aprendizado em magnitudes adequadas.
 """
 
 # ==============================================================================
@@ -291,68 +294,65 @@ OBJETIVO:
 - Passos: Conversão para escala de cinza, inversão de cores, centralização de massa/bounding box, resize 28x28 e normalização.
 - Predição com o melhor modelo e plotagem das probabilidades de saída.
 """
-
-print("\n--- FASE 5.3: Pipeline de Processamento de Imagens Próprias ---")
-
 def preprocess_custom_image(image_path):
-    """
-    Função de Pré-processamento de Imagens Externas:
-    1. Carrega a imagem.
-    2. Converte para escala de cinza.
-    3. Inverte as cores (para papel branco com traço preto -> fundo preto com traço branco).
-    4. Aplica recorte (Bounding Box) para centralização.
-    5. Redimensiona para 28x28 pixels mantendo a proporção.
-    6. Normaliza para a escala [0.0, 1.0].
-    """
-    # 1. Leitura e escala de cinza
+    # 1. Abre a imagem e converte para escala de cinza ('L')
     img = Image.open(image_path).convert('L')
-
-    # 2. Inversão de cores (Fundo deve ser escuro e o traço claro como no MNIST)
-    img = ImageOps.invert(img)
-
-    # 3. Centralização por Bounding Box (Recorte do dígito)
-    bbox = img.getbbox()
-    if bbox:
-        img = img.crop(bbox)
-
-    # 4. Redimensionamento suave para 28x28 pixels
-    img = img.resize((20, 20), Image.Resampling.LANCZOS)
-
-    # Criar uma tela preta de 28x28 e colar o dígito centralizado
-    new_img = Image.new('L', (28, 28), 0)
-    new_img.paste(img, (4, 4))
-
-    # 5. Vetorização e Normalização
-    img_array = np.array(new_img, dtype=np.float32) / 255.0
+    
+    # 2. Redimensiona para o tamanho exato do MNIST (28x28)
+    img = img.resize((28, 28))
+    
+    # 3. Converte para array do NumPy
+    img_array = np.array(img, dtype='float32')
+    
+    # --- CORREÇÃO 1: Inverter as cores se o fundo for claro ---
+    # Se a média dos pixels for maior que 127, significa que o fundo é predominantemente branco.
+    if img_array.mean() > 127:
+        img_array = 255.0 - img_array
+        
+    # --- CORREÇÃO 2: Limpar ruídos de fundo (Binarização/Limiarização) ---
+    # Tudo que for cinza escuro vira preto absoluto (0), destacando o traço do número.
+    img_array[img_array < 50] = 0.0
+    
+    # 4. Normaliza para o intervalo [0.0, 1.0] exigido pela rede
+    img_array = img_array / 255.0
+    
+    # 5. Achata para o formato de vetor (1, 784) para o MLPClassifier
     img_vector = img_array.reshape(1, 784)
-
+    
     return img_array, img_vector
 
-# --- SIMULAÇÃO DA TESTAGEM DA IMAGEM PRÓPRIA ---
-# Observação: Para testar no seu ambiente local, crie uma imagem e substitua 'meu_digito.png'
-# Exemplo hipotético testando uma amostra do próprio dataset para demonstração do gráfico de probabilidades:
 
-sample_img_array = X_test_norm[0].reshape(28, 28)
-sample_img_vector = X_test_norm[0].reshape(1, 784)
+print("\n--- FASE 5.3: Testando a imagem 'numero_dois.png' ---")
 
-# Escolha do melhor modelo treinado (SVM)
+# 1. Aplica o pré-processamento na sua imagem
+sample_img_array, sample_img_vector = preprocess_custom_image('numero_dois.png')
+
+# CODIGO TEMPORARIO PARA VER A IMAGEM PROCESSADA
+import matplotlib.pyplot as plt
+
+# Adicione isso logo após carregar a imagem customizada
+plt.imshow(sample_img_array, cmap='gray')
+plt.title("O que a rede neural está vendo de verdade")
+plt.show()
+
+# FIM CODIGO TEMPORARIO
+
+# 2. Faz a predição com o melhor modelo (SVM)
 best_model = trained_models["SVM (RBF)"]
 
-# Obtenção das probabilidades de saída ou pontuações de decisão
 if hasattr(best_model, "predict_proba"):
     probabilities = best_model.predict_proba(sample_img_vector)[0]
 else:
-    # Ajuste de escala para modelos que usam decision_function
     df_scores = best_model.decision_function(sample_img_vector)[0]
     probabilities = np.exp(df_scores) / np.sum(np.exp(df_scores))
 
 pred_class = np.argmax(probabilities)
 
-# Plotagem comparativa: Imagem Processada vs Gráfico de Probabilidades
+# 3. Exibe a imagem processada (28x28) e o gráfico de probabilidades
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
 ax1.imshow(sample_img_array, cmap='gray')
-ax1.set_title(f"Imagem Própria Processada (28x28)\nPredição: {pred_class}", fontweight='bold')
+ax1.set_title(f"Imagem Própria: numero_dois.png\nPredição da IA: {pred_class}", fontweight='bold')
 ax1.axis('off')
 
 bars = ax2.bar(range(10), probabilities, color='skyblue')
@@ -366,4 +366,4 @@ ax2.set_ylim(0, 1.0)
 plt.tight_layout()
 plt.show()
 
-print(f"Predição final do modelo para a imagem fornecida: Dígito {pred_class}")
+print(f"O modelo identificou a imagem como o número: {pred_class}")
