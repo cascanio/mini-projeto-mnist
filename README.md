@@ -1,4 +1,3 @@
-Aqui está o conteúdo completo da versão simplificada do README-v2.md:
 # 🤖 Reconhecimento de Números Manuscritos (MNIST)
 
 Este projeto ensina o computador a **reconhecer números escritos à mão (de 0 a 9)** usando Inteligência Artificial e Python.
