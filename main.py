@@ -327,15 +327,13 @@ print("\n--- FASE 5.3: Testando a imagem 'numero_dois.png' ---")
 # 1. Aplica o pré-processamento na sua imagem
 sample_img_array, sample_img_vector = preprocess_custom_image('numero_dois.png')
 
-# CODIGO TEMPORARIO PARA VER A IMAGEM PROCESSADA
+# Visualização da imagem processada (28x28) para conferência
 import matplotlib.pyplot as plt
 
-# Adicione isso logo após carregar a imagem customizada
 plt.imshow(sample_img_array, cmap='gray')
-plt.title("O que a rede neural está vendo de verdade")
+plt.title("O que o modelo está vendo de verdade")
 plt.show()
 
-# FIM CODIGO TEMPORARIO
 
 # 2. Faz a predição com o melhor modelo (SVM)
 best_model = trained_models["SVM (RBF)"]
